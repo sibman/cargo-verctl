@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Run tests
+        run: cargo test --verbose
+
+      - name: Verify cargo subcommand
+        run: |
+          cargo install --path .
+          cargo verctl --list || true

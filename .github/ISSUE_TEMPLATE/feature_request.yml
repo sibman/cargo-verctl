@@ -1,0 +1,17 @@
+name: 💡 Feature request
+description: Suggest a new idea or enhancement
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    attributes:
+      label: Summary
+      placeholder: Describe the feature or improvement
+  - type: textarea
+    attributes:
+      label: Motivation
+      placeholder: Why is this useful?
+  - type: textarea
+    attributes:
+      label: Possible implementation
+      placeholder: How might this work?

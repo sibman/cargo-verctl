@@ -1,0 +1,27 @@
+[package]
+name = "cargo-verctl"
+version = "0.2.0"
+edition = "2024"
+authors = ["Andrey Yelabugin <andrey.yelabugin@gmail.com> (https://github.com/sibman)"]
+description = "Cargo subcommand for managing versions in single and workspace Cargo.toml files (bump, set, list)"
+license = "MIT"
+repository = "https://github.com/sibman/cargo-verctl"
+homepage = "https://github.com/sibman/cargo-verctl"
+documentation = "https://docs.rs/cargo-verctl"
+keywords = ["cargo", "version", "workspace", "automation", "tooling"]
+categories = [
+    "development-tools::cargo-plugins",
+    "development-tools",
+    "command-line-utilities",
+    "config"
+]
+readme = "README.md"
+
+[[bin]]
+name = "cargo-verctl"
+path = "src/main.rs"
+
+[dependencies]
+toml_edit = "0.23.7"
+clap = { version = "4.5", features = ["derive"] }
+anyhow = "1.0"

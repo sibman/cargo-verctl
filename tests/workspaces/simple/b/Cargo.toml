@@ -1,0 +1,6 @@
+[package]
+name = "b"
+version = ""
+edition = "2024"
+
+[dependencies]

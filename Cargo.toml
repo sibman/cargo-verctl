@@ -1,6 +1,6 @@
 [package]
 name = "cargo-verctl"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 authors = ["Andrey Yelabugin <andrey.yelabugin@gmail.com> (https://github.com/sibman)"]
 description = "Cargo subcommand for managing versions in single and workspace Cargo.toml files (bump, set, list)"

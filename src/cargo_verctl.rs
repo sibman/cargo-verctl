@@ -77,40 +77,9 @@ pub fn workspace_members(root: &Path) -> Result<Vec<PathBuf>> {
     Ok(members)
 }
 
-/* pub fn handle_workspace(args: &Args, root: &Path) -> Result<()> {
-    println!("📦 Workspace detected: {:?}", root);
-    let members = workspace_members(root)?;
-    for member in &members {
-        if let Some(ref only) = args.only {
-            if !member.to_string_lossy().contains(only) {
-                continue;
-            }
-        }
-        handle_single(args, member)?;
-    }
-    Ok(())
-} */
-
 pub fn handle_workspace_default(args: &Args, root: &Path) -> Result<()> {
     handle_workspace(args, root, handle_single)
 }
-
-/* pub fn handle_workspace<F>(args: &Args, root: &Path, mut handler: F) -> Result<()>
-where
-    F: FnMut(&Args, &Path) -> Result<()>,
-{
-    println!("📦 Workspace detected: {:?}", root);
-    let members = workspace_members(root)?;
-    for member in &members {
-        if let Some(ref only) = args.only {
-            if !member.to_string_lossy().contains(only) {
-                continue;
-            }
-        }
-        handler(args, member)?;
-    }
-    Ok(())
-} */
 
 pub fn handle_workspace<F>(args: &Args, root: &Path, mut handler: F) -> Result<()>
 where
@@ -141,6 +110,11 @@ where
 pub fn handle_single(args: &Args, path: &Path) -> Result<()> {
     let text = fs::read_to_string(path)?;
     let mut doc: DocumentMut = text.parse::<DocumentMut>()?;
+
+    if !doc.as_table().contains_key("package") {
+        return Err(anyhow::anyhow!("Missing [package] section in {:?}.", path));
+    }
+
     let version_opt = doc["package"]["version"].as_str().map(|s| s.to_string());
     let version = match version_opt {
         Some(v) => v,

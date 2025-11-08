@@ -18,6 +18,12 @@ mod tests {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(rel)
     }
 
+    fn temp_file(name: &str, contents: &str) -> PathBuf {
+        let path = PathBuf::from(format!("tests/tmp_{}.toml", name));
+        fs::write(&path, contents).unwrap();
+        path
+    }
+
     #[test]
     fn test_list_versions_workspace() -> Result<()> {
         let root = ws_root("tests/workspaces/simple/Cargo.toml");
@@ -62,7 +68,6 @@ mod tests {
         let mut args = Args::default();
         args.file = root.clone();
         args.bump = Some(BumpKind::None);
-        args.set = Some(String::new());
 
         // Run the function — should process all members
         handle_workspace_default(&args, &root)?;
@@ -79,7 +84,6 @@ mod tests {
         args.file = root.clone();
         args.only = Some("a".to_string());
         args.bump = Some(BumpKind::None);
-        args.set = Some(String::new());
 
         println!("✔ handle_workspace filtered to {:?}", args.only);
         handle_workspace_default(&args, &root)?;
@@ -97,7 +101,6 @@ mod tests {
         let mut args = Args::default();
         args.file = root.clone();
         args.bump = Some(BumpKind::None);
-        args.set = Some(String::new());
 
         // shared sink
         let handled: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
@@ -134,7 +137,6 @@ mod tests {
         args.file = root.clone();
         args.only = Some("a".to_string());
         args.bump = Some(BumpKind::None);
-        args.set = Some(String::new());
 
         let handled: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
         let sink = handled.clone();
@@ -209,14 +211,9 @@ mod tests {
         "#,
         )?;
 
-        let args = Args {
-            bump: Some(BumpKind::None),
-            set: Some(String::new()),
-            file: tmp_file.clone(),
-            only: None,
-            auto: false,
-            list: false,
-        };
+        let mut args = Args::default();
+        args.file = tmp_file.clone();
+        args.bump = Some(BumpKind::None);
 
         // Should NOT panic; should handle missing member gracefully
         let result = handle_workspace_default(&args, &tmp_file);
@@ -232,10 +229,137 @@ mod tests {
     }
 
     #[test]
+    fn test_handle_single_sets_version() -> Result<()> {
+        // Arrange: create a Cargo.toml with an old version
+        let cargo_path = temp_file(
+            "set_version",
+            r#"
+        [package]
+        name = "example"
+        version = "0.1.0"
+    "#,
+        );
+
+        // Prepare arguments: set version explicitly
+        let mut args = Args::default();
+        args.file = cargo_path.clone();
+        args.bump = Some(BumpKind::None);
+        args.set = Some("1.2.3".to_string());
+
+        // Act
+        handle_single(&args, &cargo_path)?;
+
+        // Assert: check written version
+        let updated = fs::read_to_string(&cargo_path)?;
+        assert!(
+            updated.contains("version = \"1.2.3\""),
+            "Version should be updated to 1.2.3"
+        );
+
+        // Cleanup
+        let _ = fs::remove_file(&cargo_path);
+        Ok(())
+    }
+
+    #[test]
+    fn test_handle_single_bumps_patch_version() -> Result<()> {
+        // Arrange
+        let cargo_path = temp_file(
+            "bump_patch",
+            r#"
+        [package]
+        name = "example"
+        version = "0.1.0"
+    "#,
+        );
+
+        // Prepare args: bump patch
+        let mut args = Args::default();
+        args.file = cargo_path.clone();
+        args.bump = Some(BumpKind::Patch);
+
+        // Act
+        handle_single(&args, &cargo_path)?;
+
+        // Assert
+        let updated = fs::read_to_string(&cargo_path)?;
+        assert!(
+            updated.contains("version = \"0.1.1\""),
+            "Expected version bump to 0.1.1"
+        );
+
+        // Cleanup
+        let _ = fs::remove_file(&cargo_path);
+        Ok(())
+    }
+
+    #[test]
+    fn test_handle_single_missing_file() {
+        let missing_path = PathBuf::from("tests/missing_file.toml");
+
+        let mut args = Args::default();
+        args.file = missing_path.clone();
+        args.bump = Some(BumpKind::None);
+        args.set = Some("1.0.0".to_string());
+
+        let result = handle_single(&args, &missing_path);
+        assert!(result.is_err(), "Expected error for missing file");
+    }
+
+    #[test]
+    fn test_handle_single_invalid_toml() -> Result<()> {
+        let bad_path = temp_file("invalid_toml", "[package]\nversion = ");
+
+        let mut args = Args::default();
+        args.file = bad_path.clone();
+        args.bump = Some(BumpKind::None);
+        args.set = Some("1.0.0".to_string());
+
+        let result = handle_single(&args, &bad_path);
+        assert!(result.is_err(), "Expected error for invalid TOML structure");
+
+        let _ = fs::remove_file(&bad_path);
+        Ok(())
+    }
+
+    #[test]
+    fn test_handle_single_missing_package_section() -> Result<()> {
+        let bad_path = temp_file(
+            "missing_package",
+            r#"
+        [workspace]
+        members = ["a"]
+    "#,
+        );
+
+        let mut args = Args::default();
+        args.file = bad_path.clone();
+        args.bump = Some(BumpKind::None);
+        args.set = Some("2.0.0".to_string());
+
+        let result = handle_single(&args, &bad_path);
+        println!("handle_single result: {:?}", result);
+
+        assert!(
+            result.is_err(),
+            "Expected error when [package] section is missing"
+        );
+
+        let _ = fs::remove_file(&bad_path);
+        Ok(())
+    }
+
+    #[test]
     fn test_handle_single() -> Result<()> {
         let root = ws_root("tests/crates/simple/Cargo.toml");
         assert!(root.exists(), "Missing test crate file at {:?}", root);
-        //assert_eq!(handle_single(&root).unwrap(), false);
+        let mut args = Args::default();
+        args.file = root.clone();
+        args.bump = Some(BumpKind::None);
+        args.set = Some("2.0.0".to_string());
+
+        let result = handle_single(&args, &root);
+        assert!(result.is_ok(), "Expected handle_single to succeed");
         Ok(())
     }
 }
